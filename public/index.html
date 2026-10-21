@@ -173,7 +173,7 @@ var E=function(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){ret
 function load(u,id,fn,empty){fetch(u).then(function(r){return r.json()}).then(function(a){document.getElementById(id).innerHTML=a.length?a.map(fn).join(""):'<p class="lead">'+empty+'</p>'}).catch(function(){document.getElementById(id).innerHTML='<p class="lead">তথ্য লোড করা যায়নি।</p>'})}
 function cl(i){return i%2?"red":"green"}
 load("/api/notices","noticeGrid",function(n,i){return'<div class="card '+cl(i)+'"><span class="dt">'+new Date(n.date).toLocaleDateString("bn-BD")+'</span><h3>'+E(n.title)+'</h3><p>'+E(n.body)+'</p></div>'},"এখনো কোনো নোটিশ নেই।");
-load("/api/leaders","leaderGrid",function(l,i){return'<div class="card '+cl(i)+'">'+(l.photo?'<img class="ph" src="'+E(l.photo)+'" alt="'+E(l.name)+'">':'')+'<h3>'+E(l.name)+'</h3><p>'+E(l.position)+'</p></div>'},"শীঘ্রই নেতৃবৃন্দের তথ্য যুক্ত হবে।");
+load("/api/leaders","leaderGrid",function(l,i){return'<div class="card '+cl(i)+'">'+(l.photo?'<img class="ph" referrerpolicy="no-referrer" loading="lazy" src="'+E(l.photo)+'" alt="'+E(l.name)+'">':'')+'<h3>'+E(l.name)+'</h3><p>'+E(l.position)+'</p></div>'},"শীঘ্রই নেতৃবৃন্দের তথ্য যুক্ত হবে।");
 })();
 </script>
 </body>

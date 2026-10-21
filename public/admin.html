@@ -72,7 +72,7 @@ function form(){
   f.innerHTML=c.f.map(([k,l,t])=>{
     const v=edit?(t==='date'?String(edit[k]||'').slice(0,10):edit[k]):'';
     return `<label>${l}</label>`+(t==='area'?`<textarea name="${k}" rows="3">${esc(v)}</textarea>`:`<input name="${k}" type="${t||'text'}" value="${esc(v)}">`);
-  }).join('')+`<p><button>${edit?'আপডেট করুন':'যোগ করুন'}</button> ${edit?'<button type="button" class="t" onclick="edit=null;form()">বাতিল</button>':''}</p>`;
+  }).join('')+(col==='leaders'?'<label>অথবা ছবি আপলোড করুন (ফোন/কম্পিউটার থেকে)</label><input type="file" accept="image/*" id="pf">':'')+`<p><button>${edit?'আপডেট করুন':'যোগ করুন'}</button> ${edit?'<button type="button" class="t" onclick="edit=null;form()">বাতিল</button>':''}</p>`;
 }
 async function load(){
   try{items=await api('GET','admin/'+col)}catch(x){return msg(x.message)}
@@ -104,10 +104,20 @@ async function del(i){
   if(!confirm('সত্যিই মুছে ফেলবেন?'))return;
   try{await api('DELETE',`admin/${col}/${items[i]._id}`);msg('মুছে ফেলা হয়েছে');load()}catch(x){msg(x.message)}
 }
+const driveFix=u=>{const m=String(u).match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([\w-]{20,})/);return m?'https://lh3.googleusercontent.com/d/'+m[1]:u};
+$('#f').addEventListener('change',async e=>{
+  const f=e.target.files&&e.target.files[0];if(e.target.id!=='pf'||!f)return;
+  try{
+    const im=await createImageBitmap(f),s=Math.min(im.width,im.height),c=document.createElement('canvas');
+    c.width=c.height=400;c.getContext('2d').drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,400,400);
+    $('#f [name=photo]').value=c.toDataURL('image/jpeg',.82);msg('ছবি প্রস্তুত ✔ এবার “যোগ করুন/আপডেট” চাপুন');
+  }catch{msg('এই ছবিটি পড়া যায়নি, JPG বা PNG দিন')}
+});
 $('#f').onsubmit=async e=>{
   e.preventDefault();
   const b=Object.fromEntries(new FormData(e.target));
   ['date','order'].forEach(k=>b[k]===''&&delete b[k]);
+  if(b.photo)b.photo=driveFix(b.photo);
   try{edit?await api('PUT',`admin/${col}/${edit._id}`,b):await api('POST',`admin/${col}`,b);edit=null;msg('সংরক্ষিত হয়েছে ✔');load()}
   catch(x){msg(x.message)}
 };

@@ -11,10 +11,10 @@ if (!MONGODB_URI || !JWT_SECRET || !ADMIN_USER || !ADMIN_PASS) {
 
 const app = express();
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(express.json({ limit: '20kb' }));
+app.use(express.json({ limit: '200kb' }));
 
 const S = (o) => new mongoose.Schema(o, { timestamps: true });
-const url = { type: String, maxlength: 500, default: '', match: [/^(https?:\/\/.+)?$/, 'লিংক https:// দিয়ে শুরু হতে হবে'] };
+const url = { type: String, maxlength: 120000, default: '', match: [/^(https?:\/\/.{1,480}|data:image\/jpeg;base64,[A-Za-z0-9+\/=]+)?$/, 'ছবির লিংক https:// দিয়ে শুরু হতে হবে'] };
 const T = (n = 100, x = {}) => ({ type: String, maxlength: n, default: '', ...x });
 const Models = {
   notices: mongoose.model('Notice', S({
