@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>ঐকতান অ্যাডমিন</title>
+<style>
+:root{color-scheme:light dark;--g:#2e7d32;--r:#c62828;font-family:"Hind Siliguri","Noto Sans Bengali",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:Canvas;color:CanvasText;line-height:1.6}
+main{max-width:860px;margin:auto;padding:1rem}
+h1{border-bottom:4px solid;border-image:linear-gradient(90deg,var(--r) 50%,var(--g) 50%) 1;padding-bottom:.4rem}
+input,textarea,button{font:inherit;padding:.55rem .8rem;border:1px solid #8886;border-radius:8px;background:Field;color:FieldText;width:100%}
+button{width:auto;cursor:pointer;background:var(--g);color:#fff;border:0}
+button.x{background:var(--r)}
+button.t{background:none;color:inherit;border:1px solid #8886}
+button.on{background:var(--g);color:#fff}
+label{display:block;margin:.7rem 0 .2rem;font-weight:600}
+.row{display:flex;gap:.6rem;align-items:center;justify-content:space-between;border:1px solid #8884;border-radius:10px;padding:.6rem .9rem;margin:.5rem 0}
+.row small{display:block;opacity:.75;overflow-wrap:anywhere}
+.tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}
+.acts{display:flex;gap:.4rem;flex-shrink:0}
+#msg{min-height:1.6em;font-weight:600}
+</style>
+</head>
+<body>
+<main>
+<h1>ঐকতান অ্যাডমিন</h1>
+<p id="msg" role="status"></p>
+<form id="login" hidden>
+  <label>ইউজারনেম</label><input name="user" autocomplete="username" required>
+  <label>পাসওয়ার্ড</label><input name="pass" type="password" autocomplete="current-password" required>
+  <p><button>লগইন</button></p>
+</form>
+<div id="panel" hidden>
+  <div class="tabs" id="tabs"></div>
+  <form id="f"></form>
+  <div id="list"></div>
+  <p><button class="t" type="button" onclick="logout()">লগআউট</button></p>
+</div>
+</main>
+<script>
+const C={
+ notices:{label:'নোটিশ',f:[['title','শিরোনাম'],['body','বিবরণ','area'],['date','তারিখ','date']]},
+ leaders:{label:'নেতৃবৃন্দ',f:[['name','নাম'],['position','পদবি'],['photo','ছবির লিংক (https://...)'],['order','ক্রম (ছোট সংখ্যা আগে দেখাবে)','number']]},
+ joins:{label:'সদস্য আবেদন',ro:1,f:[['name','নাম'],['phone','ফোন'],['address','ঠিকানা'],['type','ধরন'],['message','বার্তা']]}
+};
+let tok=sessionStorage.getItem('t'),col='notices',edit=null,items=[];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const msg=t=>{$('#msg').textContent=t||''};
+async function api(m,u,b){
+  const r=await fetch('/api/'+u,{method:m,headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:b&&JSON.stringify(b)});
+  const d=await r.json().catch(()=>({}));
+  if(r.status===401&&u!=='login'){logout();throw new Error(d.error)}
+  if(!r.ok)throw new Error(d.error||'সমস্যা হয়েছে');
+  return d;
+}
+function logout(){sessionStorage.removeItem('t');tok=null;$('#panel').hidden=true;$('#login').hidden=false}
+$('#login').onsubmit=async e=>{
+  e.preventDefault();msg();
+  try{tok=(await api('POST','login',Object.fromEntries(new FormData(e.target)))).token;sessionStorage.setItem('t',tok);show()}
+  catch(x){msg(x.message)}
+};
+function show(){$('#login').hidden=true;$('#panel').hidden=false;tabs();load()}
+function tabs(){
+  $('#tabs').innerHTML=Object.keys(C).map(k=>`<button class="${k===col?'on':'t'}" onclick="col='${k}';edit=null;msg();tabs();load()">${C[k].label}</button>`).join('');
+}
+function form(){
+  const c=C[col],f=$('#f');f.hidden=!!c.ro;
+  f.innerHTML=c.f.map(([k,l,t])=>{
+    const v=edit?(t==='date'?String(edit[k]||'').slice(0,10):edit[k]):'';
+    return `<label>${l}</label>`+(t==='area'?`<textarea name="${k}" rows="3">${esc(v)}</textarea>`:`<input name="${k}" type="${t||'text'}" value="${esc(v)}">`);
+  }).join('')+`<p><button>${edit?'আপডেট করুন':'যোগ করুন'}</button> ${edit?'<button type="button" class="t" onclick="edit=null;form()">বাতিল</button>':''}</p>`;
+}
+async function load(){
+  try{items=await api('GET','admin/'+col)}catch(x){return msg(x.message)}
+  form();
+  const c=C[col];
+  if(col==='joins'){const p=x=>(!x.status||x.status==='pending')?0:1;items.sort((x,y)=>p(x)-p(y));$('#list').innerHTML=items.length?items.map(jrow).join(''):'<p>এখনো কোনো আবেদন নেই।</p>';return}
+  $('#list').innerHTML=items.length?items.map((it,i)=>{
+    const [first,...rest]=c.f.map(([k])=>it[k]).filter(v=>v!==undefined&&v!=='');
+    const sub=(col==='joins'?[new Date(it.createdAt).toLocaleString('bn-BD'),...rest]:rest.map(v=>String(v).slice(0,80))).join(' · ');
+    return `<div class="row"><div><b>${esc(first)}</b><small>${esc(sub)}</small></div><div class="acts">${c.ro?'':`<button class="t" onclick="ed(${i})">এডিট</button>`}<button class="x" onclick="del(${i})">মুছুন</button></div></div>`;
+  }).join(''):'<p>এখনো কিছু নেই।</p>';
+}
+function jrow(it,i){
+  const m={bkash:'বিকাশ',nagad:'নগদ (Nagad)',cash:'সরাসরি নগদ টাকা'}[it.payMethod]||'—';
+  const st={approved:'✅ অনুমোদিত',rejected:'❌ বাতিল'}[it.status]||'⏳ অপেক্ষমাণ';
+  return `<div class="row" style="align-items:flex-start"><div><b>${esc(it.name)}</b> <small style="display:inline">· ${st} · ${esc(it.appId||'পুরনো আবেদন')}</small>
+  <small>ফোন: ${esc(it.phone)} · পিতা: ${esc(it.father||'—')} · ঠিকানা: ${esc(it.presentAddress||it.address||'—')}</small>
+  <small>পেমেন্ট: ${m}${it.trxId?` · TrxID: ${esc(it.trxId)} · প্রেরক: ${esc(it.payNumber)}`:''}</small>
+  <small>${new Date(it.createdAt).toLocaleString('bn-BD')}</small></div>
+  <div class="acts" style="flex-wrap:wrap;justify-content:flex-end">${it.status==='approved'?'':`<button onclick="st(${i},'approved')">${it.payMethod==='cash'?'টাকা পেয়েছি, অনুমোদন':'পেমেন্ট ঠিক, অনুমোদন'}</button>`}${it.status==='rejected'?'':`<button class="t" onclick="st(${i},'rejected')">বাতিল</button>`}<button class="x" onclick="del(${i})">মুছুন</button></div></div>`;
+}
+async function st(i,s){
+  const it=items[i];
+  if(s==='approved'&&!confirm(it.payMethod==='cash'?'আপনি কি ২০০ টাকা হাতে পেয়েছেন?':'বিকাশ/নগদ অ্যাপে TrxID মিলিয়ে দেখেছেন?'))return;
+  try{await api('PUT',`admin/joins/${it._id}`,{status:s});msg('আপডেট হয়েছে ✔');load()}catch(x){msg(x.message)}
+}
+function ed(i){edit=items[i];form();scrollTo(0,0)}
+async function del(i){
+  if(!confirm('সত্যিই মুছে ফেলবেন?'))return;
+  try{await api('DELETE',`admin/${col}/${items[i]._id}`);msg('মুছে ফেলা হয়েছে');load()}catch(x){msg(x.message)}
+}
+$('#f').onsubmit=async e=>{
+  e.preventDefault();
+  const b=Object.fromEntries(new FormData(e.target));
+  ['date','order'].forEach(k=>b[k]===''&&delete b[k]);
+  try{edit?await api('PUT',`admin/${col}/${edit._id}`,b):await api('POST',`admin/${col}`,b);edit=null;msg('সংরক্ষিত হয়েছে ✔');load()}
+  catch(x){msg(x.message)}
+};
+tok?show():$('#login').hidden=false;
+</script>
+</body>
+</html>
